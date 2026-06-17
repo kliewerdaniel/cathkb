@@ -340,15 +340,14 @@ jobs:
         run: |
           $VERSION = "${{ github.ref_name }}" -replace "^v",""
           $BINARY = (Resolve-Path dist/cathkb.exe).Path
-          $NSIS_SCRIPT = "scripts/cathkb.nsi"
+          $DATA = (Resolve-Path dist/cathkb-data.tar.gz -ErrorAction SilentlyContinue)
+          $DATA_PATH = if ($DATA) { $DATA.Path } else { "" }
 
-          $content = Get-Content $NSIS_SCRIPT -Raw
-          $content = $content -replace '\$\{VERSION\}', $VERSION
-          $content = $content -replace '\$\{BINARY_PATH\}', "`"$BINARY`""
-
-          Set-Content -Path "build/installer.nsi" -Value $content
-
-          & "C:\Program Files (x86)\NSIS\makensis.exe" build/installer.nsi
+          & "C:\Program Files (x86)\NSIS\makensis.exe" `
+            "/DVERSION=$VERSION" `
+            "/DBINARYPATH=$BINARY" `
+            "/DDATAPATH=$DATA_PATH" `
+            scripts/cathkb.nsi
 
       - name: Sign installer
         if: env.WINDOWS_CERTIFICATE != ''

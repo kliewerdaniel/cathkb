@@ -1,5 +1,6 @@
 ; Catholic Knowledge System - NSIS Installer Script
 ; Requires NSIS (https://nsis.sourceforge.io/)
+; Pass /DVERSION=x.x.x /DBINARYPATH=path /DDATAPATH=path to makensis
 
 !include "MUI2.nsh"
 
@@ -10,8 +11,6 @@ InstallDirRegKey HKLM "Software\Catholic Knowledge System" "InstallDir"
 RequestExecutionLevel admin
 
 !define MUI_ABORTWARNING
-!define MUI_ICON "${BINARY_PATH}"
-!define MUI_UNICON "${BINARY_PATH}"
 
 ; Welcome page
 !insertmacro MUI_PAGE_WELCOME
@@ -37,11 +36,11 @@ Section "Install"
     SetOutPath "$INSTDIR"
 
     ; Main binary
-    File "${BINARY_PATH}"
+    File "${BINARYPATH}"
 
     ; Data archive if present
-    IfFileExists "build\windows\cathkb-data.tar.gz" 0 +2
-        File "build\windows\cathkb-data.tar.gz"
+    IfFileExists "${DATAPATH}" 0 +2
+        File "${DATAPATH}"
 
     ; Create uninstaller
     WriteUninstaller "$INSTDIR\uninstall.exe"
