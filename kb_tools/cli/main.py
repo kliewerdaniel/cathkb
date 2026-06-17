@@ -37,7 +37,7 @@ def _bootstrap_data(config: Config) -> None:
     if getattr(sys, "frozen", False):
         archive = Path(sys.executable).parent / "cathkb-data.tar.gz"
         if not archive.exists():
-            archive = Path(sys.executable).parent / "cathkb-data.zip"
+            archive = Path(sys.executable).parent / "cathkb-data.tar.gz"
 
         if archive.exists():
             console.print(f"[bold]Extracting data from {archive.name}...[/bold]")

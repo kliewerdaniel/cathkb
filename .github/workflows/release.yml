@@ -331,7 +331,7 @@ jobs:
       - name: Create zip archive
         run: |
           $VERSION = "${{ github.ref_name }}" -replace "^v",""
-          Compress-Archive -Path dist/cathkb.exe,dist/cathkb-data.zip -DestinationPath "dist/cathkb-${VERSION}-windows.zip"
+          Compress-Archive -Path dist/cathkb.exe,dist/cathkb-data.tar.gz -DestinationPath "dist/cathkb-${VERSION}-windows.zip"
 
       - name: Install NSIS
         run: choco install nsis -y

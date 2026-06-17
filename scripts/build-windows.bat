@@ -19,8 +19,8 @@ if not exist "%DIST_DIR%" mkdir "%DIST_DIR%"
 copy "dist\%BINARY_NAME%.exe" "%BUILD_DIR%\%BINARY_NAME%.exe"
 
 REM Bundle data if available
-if exist "dist\cathkb-data.zip" (
-    copy "dist\cathkb-data.zip" "%BUILD_DIR%\"
+if exist "dist\cathkb-data.tar.gz" (
+    copy "dist\cathkb-data.tar.gz" "%BUILD_DIR%\"
 )
 
 echo === Building NSIS installer ===

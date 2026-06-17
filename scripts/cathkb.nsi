@@ -40,8 +40,8 @@ Section "Install"
     File "${BINARY_PATH}"
 
     ; Data archive if present
-    IfFileExists "build\windows\cathkb-data.zip" 0 +2
-        File "build\windows\cathkb-data.zip"
+    IfFileExists "build\windows\cathkb-data.tar.gz" 0 +2
+        File "build\windows\cathkb-data.tar.gz"
 
     ; Create uninstaller
     WriteUninstaller "$INSTDIR\uninstall.exe"
@@ -70,7 +70,7 @@ SectionEnd
 Section "Uninstall"
     ; Remove files
     Delete "$INSTDIR\cathkb.exe"
-    Delete "$INSTDIR\cathkb-data.zip"
+    Delete "$INSTDIR\cathkb-data.tar.gz"
     Delete "$INSTDIR\uninstall.exe"
     RMDir "$INSTDIR"
 
