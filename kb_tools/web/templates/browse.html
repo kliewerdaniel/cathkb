@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Browse Documents — CathKB{% endblock %}
+{% block page_title %}Browse Documents{% endblock %}
+
+{% block content %}
+<div id="categoryView">
+    <div class="category-grid" id="categories"></div>
+</div>
+<div id="docView" style="display:none;">
+    <div style="margin-bottom:16px;">
+        <button class="btn" onclick="showCategories()">← Back to Categories</button>
+        <span id="currentCategory" style="margin-left:12px;font-weight:600;"></span>
+    </div>
+    <div class="doc-list" id="docList"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const categories = [
+    { id: 'scripture', name: 'Scripture', icon: '📖', count: 73 },
+    { id: 'magisterium/ccc', name: 'Catechism (CCC)', icon: '📕', count: 17 },
+    { id: 'canonlaw', name: 'Canon Law', icon: '⚖️', count: 7 },
+    { id: 'liturgy/girm', name: 'Liturgy (GIRM)', icon: '⛪', count: 1 },
+    { id: 'liturgy/texts', name: 'Liturgical Texts', icon: '🕊️', count: 6 },
+    { id: 'fathers', name: 'Church Fathers', icon: '📜', count: 27 },
+    { id: 'doctorate', name: 'Church Doctors', icon: '🎓', count: 16 },
+    { id: 'magisterium/encyclicals', name: 'Encyclicals', icon: '✉️', count: 26 },
+    { id: 'magisterium/exhortations', name: 'Apostolic Exhortations', icon: '📋', count: 8 },
+    { id: 'magisterium/vatican_ii', name: 'Vatican II', icon: '🏛️', count: 13 },
+    { id: 'social-teaching', name: 'Social Teaching', icon: '🤝', count: 5 },
+    { id: 'mariology', name: 'Mariology', icon: '🌹', count: 13 },
+];
+
+function renderCategories() {
+    const grid = document.getElementById('categories');
+    grid.innerHTML = categories.map(c => `
+        <div class="category-card" onclick="loadDocs('${c.id}', '${c.name}')">
+            <div class="cat-icon">${c.icon}</div>
+            <div class="cat-name">${c.name}</div>
+            <div class="cat-count">${c.count} documents</div>
+        </div>
+    `).join('');
+}
+
+async function loadDocs(catId, catName) {
+    document.getElementById('categoryView').style.display = 'none';
+    document.getElementById('docView').style.display = 'block';
+    document.getElementById('currentCategory').textContent = catName;
+    const list = document.getElementById('docList');
+    list.innerHTML = '<div class="empty-state"><p class="loading-dots">Loading documents</p></div>';
+
+    try {
+        const resp = await fetch(`/api/documents?category=${encodeURIComponent(catId)}`);
+        const data = await resp.json();
+        if (!data.documents || data.documents.length === 0) {
+            list.innerHTML = '<div class="empty-state"><h3>No documents found</h3></div>';
+            return;
+        }
+        list.innerHTML = data.documents.map(d => `
+            <div class="doc-item">
+                <div>
+                    <div class="doc-title">${d.title || d.id}</div>
+                    <div class="doc-meta">${d.category} · ${formatSize(d.size_bytes)} · ~${d.estimated_tokens?.toLocaleString() || '?'} tokens</div>
+                </div>
+                <span class="badge badge-blue">${d.chunk_strategy || 'chapter'}</span>
+            </div>
+        `).join('');
+    } catch (err) {
+        list.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${err.message}</p></div>`;
+    }
+}
+
+function showCategories() {
+    document.getElementById('categoryView').style.display = 'block';
+    document.getElementById('docView').style.display = 'none';
+}
+
+function formatSize(bytes) {
+    if (!bytes) return '?';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+renderCategories();
+</script>
+{% endblock %}

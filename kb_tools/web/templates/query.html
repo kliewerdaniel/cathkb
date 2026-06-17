@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Ask a Question — CathKB{% endblock %}
+{% block page_title %}Ask a Question{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="chat-messages" id="chat"></div>
+    <div class="chat-input-row">
+        <input type="text" id="query" placeholder="Ask a doctrinal question..." autofocus>
+        <button class="btn btn-primary" id="sendBtn" onclick="ask()">Ask</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const chat = document.getElementById('chat');
+const input = document.getElementById('query');
+const sendBtn = document.getElementById('sendBtn');
+
+input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); } });
+
+function addMessage(text, role, citations) {
+    const div = document.createElement('div');
+    div.className = `chat-message ${role}`;
+    div.innerHTML = text.replace(/\n/g, '<br>');
+    if (citations) {
+        const cit = document.createElement('div');
+        cit.className = 'chat-citations';
+        cit.innerHTML = `<strong>Sources</strong>${citations.replace(/\n/g, '<br>')}`;
+        div.appendChild(cit);
+    }
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    return div;
+}
+
+async function ask() {
+    const q = input.value.trim();
+    if (!q) return;
+    input.value = '';
+    sendBtn.disabled = true;
+
+    addMessage(q, 'user');
+    const loading = addMessage('<span class="loading-dots">Searching and generating</span>', 'assistant');
+
+    try {
+        const resp = await fetch('/api/query', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({query: q}),
+        });
+        const data = await resp.json();
+        loading.remove();
+        const role = data.is_gap ? 'gap' : 'assistant';
+        addMessage(data.response, role, data.citations);
+    } catch (err) {
+        loading.remove();
+        addMessage(`Error: ${err.message}`, 'error');
+    }
+    sendBtn.disabled = false;
+    input.focus();
+}
+</script>
+{% endblock %}

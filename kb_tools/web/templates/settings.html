@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Settings — CathKB{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div class="settings-section">
+    <h3>Ollama Configuration</h3>
+    <div class="card">
+        <div class="card-body">
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="name">Base URL</div>
+                    <div class="desc">Ollama server endpoint</div>
+                </div>
+                <input type="text" class="form-input" style="width:300px;" value="{{ config.ollama_base_url }}" id="ollamaUrl">
+            </div>
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="name">LLM Model</div>
+                    <div class="desc">Model used for reasoning and generation</div>
+                </div>
+                <input type="text" class="form-input" style="width:300px;" value="{{ config.ollama_model }}" id="llmModel">
+            </div>
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="name">Embedding Model</div>
+                    <div class="desc">Model used for vector search embeddings</div>
+                </div>
+                <input type="text" class="form-input" style="width:300px;" value="{{ config.ollama_embed_model }}" id="embedModel">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="settings-section">
+    <h3>Knowledge Base</h3>
+    <div class="card">
+        <div class="card-body">
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="name">KBMD Directory</div>
+                    <div class="desc">Path to normalized markdown documents</div>
+                </div>
+                <code style="font-size:0.9em;">{{ config.kbmd_dir }}</code>
+            </div>
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="name">Index Directory</div>
+                    <div class="desc">Path to chunks, embeddings, and catalog</div>
+                </div>
+                <code style="font-size:0.9em;">{{ config.kb_index_dir }}</code>
+            </div>
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="name">Outputs Directory</div>
+                    <div class="desc">Generated artifacts storage</div>
+                </div>
+                <code style="font-size:0.9em;">{{ config.outputs_dir }}</code>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="settings-section">
+    <h3>System Information</h3>
+    <div class="card">
+        <div class="card-body">
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="name">Version</div>
+                    <div class="desc">Catholic Knowledge System</div>
+                </div>
+                <span class="badge badge-blue">1.0.0</span>
+            </div>
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="name">Architecture</div>
+                    <div class="desc">Local-first, two-phase pipeline</div>
+                </div>
+                <span class="badge badge-green">Sovereign</span>
+            </div>
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="name">Source Authority</div>
+                    <div class="desc">Vatican.va > USCCB > EWTN > New Advent</div>
+                </div>
+                <span class="badge badge-purple">Hierarchical</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

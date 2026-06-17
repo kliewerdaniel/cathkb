@@ -9,20 +9,24 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact: cathkb-linux
-            ext: ""
-          - os: macos-latest
-            artifact: cathkb-macos
-            ext: ""
-          - os: windows-latest
-            artifact: cathkb-windows
-            ext: ".exe"
+  build-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create data archive
+        run: |
+          mkdir -p dist
+          tar czf dist/cathkb-data.tar.gz data/kbmd data/kb-index data/sources data/outputs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cathkb-data
+          path: dist/cathkb-data.tar.gz
+
+  build-linux:
+    needs: build-data
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -37,17 +41,348 @@ jobs:
           pip install pyinstaller
 
       - name: Build binary
-        run: |
-          pyinstaller --onefile --name cathkb kb_tools/cli/main.py
+        run: pyinstaller --onefile --name cathkb kb_tools/cli/main.py
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Download data archive
+        uses: actions/download-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: dist/cathkb${{ matrix.ext }}
+          name: cathkb-data
+          path: dist/
+
+      - name: Create release archive
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          tar czf dist/cathkb-${VERSION}-linux.tar.gz \
+            -C dist cathkb cathkb-data.tar.gz
+
+      - name: Build .deb package
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          sudo apt-get update && sudo apt-get install -y dpkg-dev
+          mkdir -p build/deb/DEBIAN build/deb/usr/bin build/deb/usr/share/cathkb
+          cp dist/cathkb build/deb/usr/bin/
+          chmod +x build/deb/usr/bin/cathkb
+          tar xzf dist/cathkb-data.tar.gz -C build/deb/usr/share/cathkb/
+          cat > build/deb/DEBIAN/control << EOF
+          Package: cathkb
+          Version: ${VERSION}
+          Section: education
+          Priority: optional
+          Architecture: amd64
+          Depends: libc6
+          Maintainer: Catholic Knowledge System
+          Description: Catholic Sovereign Knowledge System
+           Local-first Catholic doctrinal reasoning engine.
+          EOF
+          dpkg-deb --build build/deb dist/cathkb-${VERSION}-linux.deb
+
+      # Linux signing: GPG sign the artifacts
+      - name: Sign artifacts with GPG
+        if: env.GPG_PRIVATE_KEY != ''
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          for f in dist/cathkb-*; do
+            gpg --batch --yes --passphrase "$GPG_PASSPHRASE" \
+              --pinentry-mode loopback \
+              --detach-sign --armor "$f"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-builds
+          path: |
+            dist/cathkb-*.tar.gz
+            dist/cathkb-*.deb
+            dist/cathkb-*.sig
+
+  build-macos:
+    needs: build-data
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install pyinstaller
+
+      - name: Build binary
+        run: pyinstaller --onefile --name cathkb kb_tools/cli/main.py
+
+      - name: Download data archive
+        uses: actions/download-artifact@v4
+        with:
+          name: cathkb-data
+          path: dist/
+
+      - name: Import code signing certificate
+        if: env.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+        run: |
+          # Create temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
+          security create-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import certificate
+          CERT_PATH=$RUNNER_TEMP/certificate.p12
+          echo -n "$APPLE_CERTIFICATE" | base64 --decode > "$CERT_PATH"
+          security import "$CERT_PATH" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$APPLE_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+      - name: Create .app bundle
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          APP="Catholic Knowledge System"
+          mkdir -p "build/$APP.app/Contents/MacOS"
+          mkdir -p "build/$APP.app/Contents/Resources"
+          cp dist/cathkb "build/$APP.app/Contents/MacOS/cathkb"
+
+          cat > "build/$APP.app/Contents/MacOS/$APP" << 'EOF'
+          #!/bin/bash
+          DIR="$(cd "$(dirname "$0")" && pwd)"
+          exec "$DIR/cathkb" serve --no-browser "$@"
+          EOF
+          chmod +x "build/$APP.app/Contents/MacOS/$APP"
+
+          cat > "build/$APP.app/Contents/Info.plist" << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleName</key><string>$APP</string>
+              <key>CFBundleDisplayName</key><string>$APP</string>
+              <key>CFBundleIdentifier</key><string>com.cathkb.app</string>
+              <key>CFBundleVersion</key><string>$VERSION</string>
+              <key>CFBundleShortVersionString</key><string>$VERSION</string>
+              <key>CFBundleExecutable</key><string>$APP</string>
+              <key>CFBundlePackageType</key><string>APPL</string>
+              <key>LSMinimumSystemVersion</key><string>11.0</string>
+              <key>LSApplicationCategoryType</key><string>public.app-category.education</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Code sign .app bundle
+        if: env.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          APP="Catholic Knowledge System"
+          codesign --force --deep --sign - \
+            --options runtime \
+            --timestamp \
+            --identifier "com.cathkb.app" \
+            "build/$APP.app"
+
+      - name: Create .dmg
+        run: |
+          brew install create-dmg 2>/dev/null || true
+          VERSION=${GITHUB_REF_NAME#v}
+          mkdir -p dist
+          create-dmg \
+            --volname "Catholic Knowledge System" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --app-drop-link 425 190 \
+            "dist/cathkb-${VERSION}-macos.dmg" \
+            "build/Catholic Knowledge System.app" || {
+              echo "create-dmg failed, creating zip instead"
+              cd build && zip -r "../dist/cathkb-${VERSION}-macos.zip" "Catholic Knowledge System.app"
+            }
+
+      - name: Sign .dmg
+        if: env.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          DMG="dist/cathkb-${VERSION}-macos.dmg"
+          if [ -f "$DMG" ]; then
+            codesign --force --sign - --timestamp "$DMG"
+          fi
+
+      - name: Notarize .dmg
+        if: env.APPLE_ID != ''
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          DMG="dist/cathkb-${VERSION}-macos.dmg"
+          if [ -f "$DMG" ]; then
+            xcrun notarytool submit "$DMG" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --wait
+            xcrun stapler staple "$DMG"
+          fi
+
+      - name: Create release archive
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          tar czf dist/cathkb-${VERSION}-macos.tar.gz \
+            -C dist cathkb cathkb-data.tar.gz
+
+      - name: Cleanup keychain
+        if: always() && env.APPLE_CERTIFICATE != ''
+        run: |
+          security delete-keychain $RUNNER_TEMP/signing.keychain-db 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-builds
+          path: |
+            dist/cathkb-*-macos.dmg
+            dist/cathkb-*-macos.zip
+            dist/cathkb-*-macos.tar.gz
+
+  build-windows:
+    needs: build-data
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install pyinstaller
+
+      - name: Build binary
+        run: pyinstaller --onefile --name cathkb kb_tools/cli/main.py
+
+      - name: Download data archive
+        uses: actions/download-artifact@v4
+        with:
+          name: cathkb-data
+          path: dist/
+
+      # Windows Authenticode signing via Azure Trusted Signing or signtool
+      - name: Sign binary with Azure Trusted Signing
+        if: env.AZURE_CLIENT_ID != ''
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CODE_SIGNING_ACCOUNT: ${{ secrets.AZURE_CODE_SIGNING_ACCOUNT }}
+          AZURE_CERT_PROFILE_NAME: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+        run: |
+          dotnet tool install --global AzureSignTool
+          AzureSignTool sign \
+            --azure-key-vault-url "https://${{ secrets.AZURE_CODE_SIGNING_ACCOUNT }}.signing.azure.net" \
+            --azure-key-vault-client-id "$AZURE_CLIENT_ID" \
+            --azure-key-vault-client-secret "$AZURE_CLIENT_SECRET" \
+            --azure-key-vault-tenant-id "$AZURE_TENANT_ID" \
+            --azure-key-vault-certificate "$AZURE_CERT_PROFILE_NAME" \
+            --timestamp-url "http://timestamp.digicert.com" \
+            --file-digest sha256 \
+            dist/cathkb.exe
+
+      - name: Sign binary with local cert (fallback)
+        if: env.WINDOWS_CERTIFICATE != '' && env.AZURE_CLIENT_ID == ''
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+          $certBytes = [Convert]::FromBase64String($WINDOWS_CERTIFICATE)
+          $cert.Import($certBytes, $WINDOWS_CERTIFICATE_PASSWORD, "Exportable")
+          $thumbprint = $cert.Thumbprint
+
+          # Import cert to temp store
+          $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("My", "CurrentUser")
+          $store.Open("ReadWrite")
+          $store.Add($cert)
+          $store.Close()
+
+          # Sign with signtool
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign \
+            /sha1 $thumbprint \
+            /t http://timestamp.digicert.com \
+            /fd sha256 \
+            /tr http://timestamp.digicert.com \
+            dist/cathkb.exe
+
+      - name: Create zip archive
+        run: |
+          $VERSION = "${{ github.ref_name }}" -replace "^v",""
+          Compress-Archive -Path dist/cathkb.exe,dist/cathkb-data.zip -DestinationPath "dist/cathkb-${VERSION}-windows.zip"
+
+      - name: Install NSIS
+        run: choco install nsis -y
+
+      - name: Build NSIS installer
+        run: |
+          $VERSION = "${{ github.ref_name }}" -replace "^v",""
+          $BINARY = (Resolve-Path dist/cathkb.exe).Path
+          $NSIS_SCRIPT = "scripts/cathkb.nsi"
+
+          $content = Get-Content $NSIS_SCRIPT -Raw
+          $content = $content -replace '\$\{VERSION\}', $VERSION
+          $content = $content -replace '\$\{BINARY_PATH\}', "`"$BINARY`""
+
+          Set-Content -Path "build/installer.nsi" -Value $content
+
+          & "C:\Program Files (x86)\NSIS\makensis.exe" build/installer.nsi
+
+      - name: Sign installer
+        if: env.WINDOWS_CERTIFICATE != ''
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $VERSION = "${{ github.ref_name }}" -replace "^v",""
+          $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+          $certBytes = [Convert]::FromBase64String($WINDOWS_CERTIFICATE)
+          $cert.Import($certBytes, $WINDOWS_CERTIFICATE_PASSWORD, "Exportable")
+          $thumbprint = $cert.Thumbprint
+
+          $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("My", "CurrentUser")
+          $store.Open("ReadWrite")
+          $store.Add($cert)
+          $store.Close()
+
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign \
+            /sha1 $thumbprint \
+            /t http://timestamp.digicert.com \
+            /fd sha256 \
+            /tr http://timestamp.digicert.com \
+            "dist/cathkb-${VERSION}-windows.exe"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-builds
+          path: |
+            dist/cathkb-*-windows.exe
+            dist/cathkb-*-windows.zip
 
   release:
-    needs: build
+    needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -60,8 +395,8 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/cathkb-linux/cathkb
-            dist/cathkb-macos/cathkb
-            dist/cathkb-windows/cathkb.exe
           generate_release_notes: true
+          files: |
+            dist/linux-builds/*
+            dist/macos-builds/*
+            dist/windows-builds/*

@@ -36,9 +36,10 @@ def test_keyword_search_loads_chunks(tmp_path):
     assert "God" in results[0].get("text", "")
 
 
-def test_vector_search_raises_without_index():
+def test_vector_search_raises_without_index(monkeypatch):
     """VectorSearch raises FileNotFoundError when index missing."""
-    config = Config(project_root=Path("/nonexistent"))
+    monkeypatch.setenv("CATHKB_DATA_DIR", "/nonexistent")
+    config = Config()
     search = VectorSearch(config)
     try:
         search.search("test")

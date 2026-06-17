@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Generate Artifacts — CathKB{% endblock %}
+{% block page_title %}Generate Artifacts{% endblock %}
+
+{% block content %}
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+    <div>
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-header"><h2>Artifact Type</h2></div>
+            <div class="card-body">
+                <div class="artifact-grid">
+                    <div class="artifact-type selected" data-type="study-guide" onclick="selectType(this)">
+                        <div class="type-icon">📖</div>
+                        <div class="type-name">Study Guide</div>
+                        <div class="type-desc">Comprehensive guide with key points and sources</div>
+                    </div>
+                    <div class="artifact-type" data-type="timeline" onclick="selectType(this)">
+                        <div class="type-icon">📅</div>
+                        <div class="type-name">Timeline</div>
+                        <div class="type-desc">Chronological development with citations</div>
+                    </div>
+                    <div class="artifact-type" data-type="comparison" onclick="selectType(this)">
+                        <div class="type-icon">⚖️</div>
+                        <div class="type-name">Comparison</div>
+                        <div class="type-desc">Compare perspectives using canonical sources</div>
+                    </div>
+                    <div class="artifact-type" data-type="doctrinal-brief" onclick="selectType(this)">
+                        <div class="type-icon">📋</div>
+                        <div class="type-name">Doctrinal Brief</div>
+                        <div class="type-desc">Official teaching with theological development</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h2>Configuration</h2></div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="topic">Topic</label>
+                    <input type="text" id="topic" class="form-input" placeholder="e.g., The Eucharist, Marian Dogmas, Social Justice">
+                    <div class="form-hint">Enter a topic for the artifact</div>
+                </div>
+                <button class="btn btn-primary btn-lg" style="width:100%;justify-content:center;" onclick="generate()" id="genBtn">
+                    Generate Artifact
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="card" style="height:100%;">
+            <div class="card-header">
+                <h2>Output</h2>
+                <button class="btn btn-sm" id="copyBtn" onclick="copyOutput()" style="display:none;">Copy</button>
+            </div>
+            <div class="card-body" id="output" style="min-height:400px;">
+                <div class="empty-state">
+                    <div class="empty-icon">📄</div>
+                    <h3>Artifact Preview</h3>
+                    <p>Select an artifact type, enter a topic, and click Generate.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedType = 'study-guide';
+
+function selectType(el) {
+    document.querySelectorAll('.artifact-type').forEach(e => e.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedType = el.dataset.type;
+}
+
+async function generate() {
+    const topic = document.getElementById('topic').value.trim();
+    if (!topic) return;
+    const btn = document.getElementById('genBtn');
+    const output = document.getElementById('output');
+    const copyBtn = document.getElementById('copyBtn');
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+    output.innerHTML = '<div class="empty-state"><p class="loading-dots">Generating artifact</p></div>';
+    copyBtn.style.display = 'none';
+
+    try {
+        const resp = await fetch('/api/artifact', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({topic, artifact_type: selectedType}),
+        });
+        const data = await resp.json();
+        if (data.path) {
+            output.innerHTML = `<div style="margin-bottom:12px;"><span class="badge badge-green">Saved to ${data.path}</span></div><pre style="white-space:pre-wrap;font-size:0.9em;line-height:1.6;">${data.content || 'File saved successfully.'}</pre>`;
+            copyBtn.style.display = 'inline-flex';
+        } else if (data.error) {
+            output.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${data.error}</p></div>`;
+        }
+    } catch (err) {
+        output.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${err.message}</p></div>`;
+    }
+    btn.disabled = false;
+    btn.textContent = 'Generate Artifact';
+}
+
+function copyOutput() {
+    const text = document.getElementById('output').innerText;
+    navigator.clipboard.writeText(text);
+}
+</script>
+{% endblock %}

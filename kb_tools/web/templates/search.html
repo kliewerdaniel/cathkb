@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Search — CathKB{% endblock %}
+{% block page_title %}Search Corpus{% endblock %}
+
+{% block content %}
+<div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search the knowledge base..." autofocus>
+    <button class="btn btn-primary" onclick="doSearch()">Search</button>
+</div>
+<div id="results"></div>
+<div id="empty" class="empty-state">
+    <div class="empty-icon">🔍</div>
+    <h3>Search the Knowledge Base</h3>
+    <p>Enter a query to search across 212 documents — Scripture, CCC, canon law, Church Fathers, encyclicals, and more.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const input = document.getElementById('searchInput');
+input.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+async function doSearch() {
+    const q = input.value.trim();
+    if (!q) return;
+    const resultsDiv = document.getElementById('results');
+    const emptyDiv = document.getElementById('empty');
+    emptyDiv.style.display = 'none';
+    resultsDiv.innerHTML = '<div class="empty-state"><p class="loading-dots">Searching</p></div>';
+
+    try {
+        const resp = await fetch(`/api/search?q=${encodeURIComponent(q)}&top_k=15`);
+        const data = await resp.json();
+        if (!data.results || data.results.length === 0) {
+            resultsDiv.innerHTML = '<div class="empty-state"><h3>No results found</h3><p>Try different keywords or check your spelling.</p></div>';
+            return;
+        }
+        resultsDiv.innerHTML = `<div style="margin-bottom:12px;font-size:0.85em;color:var(--text-secondary);">Found ${data.results.length} results</div>`;
+        for (const r of data.results) {
+            const score = (r.score || 0).toFixed(3);
+            const source = r.source_path || r.doc_id || '?';
+            const section = r.section_label || '';
+            const text = r.text || r.text_preview || '';
+            const preview = text.substring(0, 300) + (text.length > 300 ? '...' : '');
+            const category = r.category || '';
+            resultsDiv.innerHTML += `
+                <div class="result-card">
+                    <div class="result-header">
+                        <span class="result-source">${source}</span>
+                        <span class="result-score">score: ${score}</span>
+                    </div>
+                    ${section ? `<div class="result-section">${section}</div>` : ''}
+                    <div style="margin-bottom:6px;"><span class="badge badge-blue">${category}</span></div>
+                    <div class="result-text">${preview}</div>
+                </div>`;
+        }
+    } catch (err) {
+        resultsDiv.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${err.message}</p></div>`;
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — CathKB{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="label">Documents</div>
+        <div class="value">{{ stats.total_docs }}</div>
+        <div class="sub">across {{ stats.categories }} categories</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Searchable Chunks</div>
+        <div class="value">{{ stats.total_chunks }}</div>
+        <div class="sub">indexed and embedded</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Embedding Model</div>
+        <div class="value" style="font-size:1.2em">{{ stats.embed_model }}</div>
+        <div class="sub">{{ stats.embed_dims }} dimensions</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">LLM Model</div>
+        <div class="value" style="font-size:1.2em">{{ stats.llm_model }}</div>
+        <div class="sub">local inference via Ollama</div>
+    </div>
+</div>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <div class="card">
+        <div class="card-header">
+            <h2>Quick Actions</h2>
+        </div>
+        <div class="card-body" style="display:flex; flex-direction:column; gap:10px;">
+            <a href="/query" class="btn btn-primary btn-lg" style="justify-content:center;">
+                Ask a Doctrinal Question
+            </a>
+            <a href="/search" class="btn btn-lg" style="justify-content:center;">
+                Search the Knowledge Base
+            </a>
+            <a href="/artifacts" class="btn btn-lg" style="justify-content:center;">
+                Generate a Study Artifact
+            </a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2>Source Categories</h2>
+        </div>
+        <div class="card-body">
+            {% for cat in stats.category_list %}
+            <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border-light);">
+                <span style="font-size:0.9em;">{{ cat.name }}</span>
+                <span class="badge badge-blue">{{ cat.count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top:20px;">
+    <div class="card-header">
+        <h2>Architecture</h2>
+    </div>
+    <div class="card-body">
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; text-align:center;">
+            <div>
+                <div style="font-size:1.5em; margin-bottom:4px;">📥</div>
+                <div style="font-weight:600; font-size:0.9em;">Knowledge Construction</div>
+                <div style="font-size:0.8em; color:var(--text-secondary);">Source harvesting → HTML → Markdown → Index</div>
+            </div>
+            <div>
+                <div style="font-size:1.5em; margin-bottom:4px;">🔍</div>
+                <div style="font-weight:600; font-size:0.9em;">Search Engine</div>
+                <div style="font-size:0.8em; color:var(--text-secondary);">Vector (Ollama) → Keyword (ripgrep) → fallback</div>
+            </div>
+            <div>
+                <div style="font-size:1.5em; margin-bottom:4px;">🧠</div>
+                <div style="font-weight:600; font-size:0.9em;">Reasoning Engine</div>
+                <div style="font-size:0.8em; color:var(--text-secondary);">Context assembly → Ollama → cited response</div>
+            </div>
+            <div>
+                <div style="font-size:1.5em; margin-bottom:4px;">📄</div>
+                <div style="font-weight:600; font-size:0.9em;">Artifact Generation</div>
+                <div style="font-size:0.8em; color:var(--text-secondary);">Study guides, timelines, comparisons, briefs</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
