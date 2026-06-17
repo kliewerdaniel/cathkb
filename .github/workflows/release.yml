@@ -17,7 +17,7 @@ jobs:
       - name: Create data archive
         run: |
           mkdir -p dist
-          tar czf dist/cathkb-data.tar.gz data/kbmd data/kb-index data/sources data/outputs
+          tar czf dist/cathkb-data.tar.gz data/kbmd data/kb-index data/sources
 
       - uses: actions/upload-artifact@v4
         with:
