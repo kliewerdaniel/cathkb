@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catholic Knowledge System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        header { text-align: center; padding: 30px 0; }
+        header h1 { font-size: 1.8em; color: #2c3e50; }
+        header p { color: #7f8c8d; margin-top: 5px; }
+        .chat-box { background: white; border-radius: 8px; padding: 20px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); min-height: 400px; max-height: 60vh; overflow-y: auto; }
+        .message { margin-bottom: 15px; padding: 12px; border-radius: 6px; }
+        .message.user { background: #e8f4fd; border-left: 3px solid #3498db; }
+        .message.assistant { background: #f9f9f9; border-left: 3px solid #27ae60; }
+        .message.gap { background: #fff3cd; border-left: 3px solid #ffc107; }
+        .input-row { display: flex; gap: 10px; }
+        .input-row input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; }
+        .input-row button { padding: 12px 24px; background: #2c3e50; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        .input-row button:hover { background: #34495e; }
+        .input-row button:disabled { background: #95a5a6; cursor: not-allowed; }
+        .citations { margin-top: 10px; padding: 10px; background: #eaf2e3; border-radius: 4px; font-size: 0.9em; }
+        .citations strong { color: #27ae60; }
+        .loading { color: #7f8c8d; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Catholic Sovereign Knowledge System</h1>
+            <p>Local-first doctrinal reasoning grounded in authoritative sources</p>
+        </header>
+        <div class="chat-box" id="chat"></div>
+        <div class="input-row">
+            <input type="text" id="query" placeholder="Ask a doctrinal question..." autofocus>
+            <button id="send" onclick="ask()">Ask</button>
+        </div>
+    </div>
+    <script>
+        const chat = document.getElementById('chat');
+        const input = document.getElementById('query');
+        const sendBtn = document.getElementById('send');
+
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') ask(); });
+
+        function addMessage(text, role, citations) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.innerHTML = text.replace(/\n/g, '<br>');
+            if (citations) {
+                div.innerHTML += `<div class="citations"><strong>Sources:</strong><br>${citations.replace(/\n/g, '<br>')}</div>`;
+            }
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        async function ask() {
+            const q = input.value.trim();
+            if (!q) return;
+            input.value = '';
+            sendBtn.disabled = true;
+
+            addMessage(q, 'user');
+            const loading = document.createElement('div');
+            loading.className = 'message assistant loading';
+            loading.textContent = 'Searching knowledge base and generating response...';
+            chat.appendChild(loading);
+            chat.scrollTop = chat.scrollHeight;
+
+            try {
+                const resp = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({query: q}),
+                });
+                const data = await resp.json();
+                loading.remove();
+                const role = data.is_gap ? 'gap' : 'assistant';
+                addMessage(data.response, role, data.citations);
+            } catch (err) {
+                loading.remove();
+                addMessage(`Error: ${err.message}`, 'assistant');
+            }
+            sendBtn.disabled = false;
+            input.focus();
+        }
+    </script>
+</body>
+</html>

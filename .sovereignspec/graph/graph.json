@@ -1,0 +1,191 @@
+{
+  "nodes": [
+    {
+      "id": "proj-catholic-knowledge-system",
+      "type": "Project",
+      "label": "Catholic Sovereign Knowledge System",
+      "metadata": {
+        "created_at": "2026-06-15T00:00:00Z",
+        "status": "active"
+      }
+    },
+    {
+      "id": "spec-catholic-knowledge-system",
+      "type": "Specification",
+      "label": "Catholic Knowledge System Spec",
+      "metadata": {
+        "version": "1.0.0",
+        "status": "active"
+      }
+    },
+    {
+      "id": "adr-001",
+      "type": "ADR",
+      "label": "Local-First Architecture",
+      "metadata": { "status": "accepted", "date": "2026-06-15" }
+    },
+    {
+      "id": "adr-002",
+      "type": "ADR",
+      "label": "Authoritative Source Hierarchy",
+      "metadata": { "status": "accepted", "date": "2026-06-15" }
+    },
+    {
+      "id": "adr-003",
+      "type": "ADR",
+      "label": "Two-Phase Pipeline Architecture",
+      "metadata": { "status": "accepted", "date": "2026-06-15" }
+    },
+    {
+      "id": "mod-kb-tools",
+      "type": "Module",
+      "label": "kb_tools — Core Package",
+      "metadata": {
+        "path": "kb_tools/",
+        "description": "Main Python package for knowledge base operations"
+      }
+    },
+    {
+      "id": "mod-ingest",
+      "type": "Module",
+      "label": "kb_tools.ingest — Ingestion Pipeline",
+      "metadata": {
+        "path": "kb_tools/ingest/",
+        "description": "Source harvesting, HTML normalization, markdown conversion"
+      }
+    },
+    {
+      "id": "mod-index",
+      "type": "Module",
+      "label": "kb_tools.index — Index Builder",
+      "metadata": {
+        "path": "kb_tools/index/",
+        "description": "Catalog, chunking, embedding, cross-reference generation"
+      }
+    },
+    {
+      "id": "mod-search",
+      "type": "Module",
+      "label": "kb_tools.search — Search Engine",
+      "metadata": {
+        "path": "kb_tools/search/",
+        "description": "Vector search, keyword search, unified search interface"
+      }
+    },
+    {
+      "id": "mod-reasoning",
+      "type": "Module",
+      "label": "kb_tools.reasoning — Reasoning Engine",
+      "metadata": {
+        "path": "kb_tools/reasoning/",
+        "description": "Context assembly, response generation, artifact creation"
+      }
+    },
+    {
+      "id": "mod-cli",
+      "type": "Module",
+      "label": "kb_tools.cli — CLI Interface",
+      "metadata": {
+        "path": "kb_tools/cli/",
+        "description": "Command-line interface with query, build, and output commands"
+      }
+    },
+    {
+      "id": "mod-web",
+      "type": "Module",
+      "label": "kb_tools.web — Web Interface",
+      "metadata": {
+        "path": "kb_tools/web/",
+        "description": "FastAPI web server with chat UI"
+      }
+    },
+    {
+      "id": "mod-mcp",
+      "type": "Module",
+      "label": "kb_tools.mcp — MCP Server",
+      "metadata": {
+        "path": "kb_tools/mcp/",
+        "description": "Model Context Protocol server for agent integration"
+      }
+    },
+    {
+      "id": "mod-data",
+      "type": "Module",
+      "label": "data/ — Knowledge Corpus",
+      "metadata": {
+        "path": "data/",
+        "description": "212 documents, 85MB — pre-built chunks and embeddings"
+      }
+    },
+    {
+      "id": "mod-scripts",
+      "type": "Module",
+      "label": "scripts/ — Build Scripts",
+      "metadata": {
+        "path": "scripts/",
+        "description": "Cross-platform build scripts for releases"
+      }
+    },
+    {
+      "id": "ep-query-cli",
+      "type": "Endpoint",
+      "label": "CLI Query",
+      "metadata": { "method": "CLI", "path": "cathkb query" }
+    },
+    {
+      "id": "ep-query-web",
+      "type": "Endpoint",
+      "label": "Web Query API",
+      "metadata": { "method": "POST", "path": "/api/query" }
+    },
+    {
+      "id": "ep-search-web",
+      "type": "Endpoint",
+      "label": "Web Search API",
+      "metadata": { "method": "GET", "path": "/api/search" }
+    },
+    {
+      "id": "ep-web-ui",
+      "type": "Endpoint",
+      "label": "Web UI",
+      "metadata": { "method": "GET", "path": "/" }
+    },
+    {
+      "id": "ep-mcp",
+      "type": "Endpoint",
+      "label": "MCP Tools",
+      "metadata": { "method": "MCP", "path": "query, search, artifact" }
+    }
+  ],
+  "edges": [
+    { "source": "proj-catholic-knowledge-system", "target": "spec-catholic-knowledge-system", "type": "IMPLEMENTS" },
+    { "source": "spec-catholic-knowledge-system", "target": "adr-001", "type": "REFERENCES" },
+    { "source": "spec-catholic-knowledge-system", "target": "adr-002", "type": "REFERENCES" },
+    { "source": "spec-catholic-knowledge-system", "target": "adr-003", "type": "REFERENCES" },
+    { "source": "spec-catholic-knowledge-system", "target": "mod-kb-tools", "type": "GENERATES" },
+    { "source": "spec-catholic-knowledge-system", "target": "mod-data", "type": "REFERENCES" },
+    { "source": "mod-kb-tools", "target": "mod-ingest", "type": "CONTAINS" },
+    { "source": "mod-kb-tools", "target": "mod-index", "type": "CONTAINS" },
+    { "source": "mod-kb-tools", "target": "mod-search", "type": "CONTAINS" },
+    { "source": "mod-kb-tools", "target": "mod-reasoning", "type": "CONTAINS" },
+    { "source": "mod-kb-tools", "target": "mod-cli", "type": "CONTAINS" },
+    { "source": "mod-kb-tools", "target": "mod-web", "type": "CONTAINS" },
+    { "source": "mod-kb-tools", "target": "mod-mcp", "type": "CONTAINS" },
+    { "source": "mod-ingest", "target": "mod-data", "type": "GENERATES" },
+    { "source": "mod-index", "target": "mod-data", "type": "GENERATES" },
+    { "source": "mod-search", "target": "mod-data", "type": "DEPENDS_ON" },
+    { "source": "mod-reasoning", "target": "mod-search", "type": "DEPENDS_ON" },
+    { "source": "mod-cli", "target": "mod-reasoning", "type": "DEPENDS_ON" },
+    { "source": "mod-cli", "target": "mod-search", "type": "DEPENDS_ON" },
+    { "source": "mod-web", "target": "mod-reasoning", "type": "DEPENDS_ON" },
+    { "source": "mod-web", "target": "mod-search", "type": "DEPENDS_ON" },
+    { "source": "mod-mcp", "target": "mod-reasoning", "type": "DEPENDS_ON" },
+    { "source": "mod-mcp", "target": "mod-search", "type": "DEPENDS_ON" },
+    { "source": "mod-cli", "target": "ep-query-cli", "type": "GENERATES" },
+    { "source": "mod-web", "target": "ep-query-web", "type": "GENERATES" },
+    { "source": "mod-web", "target": "ep-search-web", "type": "GENERATES" },
+    { "source": "mod-web", "target": "ep-web-ui", "type": "GENERATES" },
+    { "source": "mod-mcp", "target": "ep-mcp", "type": "GENERATES" },
+    { "source": "mod-scripts", "target": "mod-kb-tools", "type": "PACKAGES" }
+  ]
+}
